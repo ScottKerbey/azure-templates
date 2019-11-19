@@ -1,0 +1,133 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "storageAccounts_skerbeyacisa_name": {
+            "defaultValue": "skerbeyacisa",
+            "type": "String"
+        },
+        "containerGroups_mongonetcontainer_name": {
+            "defaultValue": "mongonetcontainer",
+            "type": "String"
+        },
+        "networkProfiles_aci_network_profile_skerbey_vnet_containers_externalid": {
+            "defaultValue": "/subscriptions/ac7ef908-6dbc-4bad-99b0-319ef419cfbc/resourceGroups/scott.kerbey/providers/Microsoft.Network/networkProfiles/aci-network-profile-skerbey-vnet-containers",
+            "type": "String"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.ContainerInstance/containerGroups",
+            "apiVersion": "2018-10-01",
+            "name": "[parameters('containerGroups_mongonetcontainer_name')]",
+            "location": "australiaeast",
+            "properties": {
+                "containers": [
+                    {
+                        "name": "[parameters('containerGroups_mongonetcontainer_name')]",
+                        "properties": {
+                            "image": "mongo:latest",
+                            "command": [
+                                "mongod",
+                                "--dbpath=/data/mongoaz",
+                                "--bind_ip_all",
+                                "--auth"
+                            ],
+                            "ports": [
+                                {
+                                    "protocol": "TCP",
+                                    "port": 27017
+                                }
+                            ],
+                            "environmentVariables": [],
+                            "resources": {
+                                "requests": {
+                                    "memoryInGB": 1.5,
+                                    "cpu": 1
+                                }
+                            },
+                            "volumeMounts": [
+                                {
+                                    "name": "azurefile",
+                                    "mountPath": "/data/mongoaz"
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "restartPolicy": "Always",
+                "ipAddress": {
+                    "ports": [
+                        {
+                            "protocol": "TCP",
+                            "port": 27017
+                        }
+                    ],
+                    "ip": "10.0.1.4",
+                    "type": "Private"
+                },
+                "osType": "Linux",
+                "volumes": [
+                    {
+                        "name": "azurefile",
+                        "azureFile": {
+                            "shareName": "mongostorage",
+                            "storageAccountName": "skerbeyacisa"
+                        }
+                    }
+                ],
+                "networkProfile": {
+                    "id": "[parameters('networkProfiles_aci_network_profile_skerbey_vnet_containers_externalid')]"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-04-01",
+            "name": "[parameters('storageAccounts_skerbeyacisa_name')]",
+            "location": "australiaeast",
+            "sku": {
+                "name": "Standard_RAGRS",
+                "tier": "Standard"
+            },
+            "kind": "Storage",
+            "properties": {
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "virtualNetworkRules": [],
+                    "ipRules": [],
+                    "defaultAction": "Allow"
+                },
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                    "services": {
+                        "file": {
+                            "enabled": true
+                        },
+                        "blob": {
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices",
+            "apiVersion": "2019-04-01",
+            "name": "[concat(parameters('storageAccounts_skerbeyacisa_name'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccounts_skerbeyacisa_name'))]"
+            ],
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                },
+                "deleteRetentionPolicy": {
+                    "enabled": false
+                }
+            }
+        }
+    ]
+}
