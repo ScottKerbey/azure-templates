@@ -1,0 +1,109 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "storageAccountName": {
+            "type": "String",
+            "metadata": {
+                "description": "Storage Account Name"
+            }
+        },
+        "fileShareName": {
+            "type": "string",
+            "metadata": {
+                "description": "File Share Name"
+            }
+        },
+        "containerName": {
+            "type": "String",
+            "metadata": {
+                "description": "Container Name"
+            }
+        }
+    },
+    "variables": {
+        "image": "microsoft/azure-cli",
+        "cpuCores": "1.0",
+        "memoryInGb": "1.5",
+        "containerGroupName": "createshare-containerinstance",
+        "containerName": "createshare"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-04-01",
+            "name": "[parameters('storageAccountName')]",
+            "location": "australiaeast",
+            "sku": {
+                "name": "Standard_RAGRS",
+                "tier": "Standard"
+            },
+            "kind": "Storage",
+            "properties": {
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "virtualNetworkRules": [],
+                    "ipRules": [],
+                    "defaultAction": "Allow"
+                },
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                    "services": {
+                        "file": {
+                            "enabled": true
+                        },
+                        "blob": {
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                }
+            }
+        },
+        {
+        "name": "[variables('containerGroupName')]",
+        "type": "Microsoft.ContainerInstance/containerGroups",
+        "apiVersion": "2018-02-01-preview",
+        "location": "[parameters('containerInstanceLocation')]",
+        "dependsOn": [
+            "[concat('Microsoft.Storage/storageAccounts/', parameters('storageAccountName'))]"
+        ],
+        "properties": {
+            "containers": [
+            {
+                "name": "[variables('containerName')]",
+                "properties": {
+                "image": "[variables('image')]",
+                "command": [
+                    "az",
+                    "storage",
+                    "share",
+                    "create",
+                    "--name",
+                    "[parameters('fileShareName')]"
+                ],
+                "environmentVariables": [
+                    {
+                    "name": "AZURE_STORAGE_KEY",
+                    "value": "[listKeys(parameters('storageAccountName'),'2017-10-01').keys[0].value]"
+                    },
+                    {
+                    "name": "AZURE_STORAGE_ACCOUNT",
+                    "value": "[parameters('storageAccountName')]"
+                    }
+                ],
+                "resources": {
+                    "requests": {
+                    "cpu": "[variables('cpuCores')]",
+                    "memoryInGb": "[variables('memoryInGb')]"
+                    }
+                }
+                }
+            }
+            ],
+            "restartPolicy": "OnFailure",
+            "osType": "Linux"
+        }
+        }
+    ]
+}
