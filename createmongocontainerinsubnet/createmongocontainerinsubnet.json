@@ -1,0 +1,96 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "containerName": {
+            "type": "String"
+        },
+        "storageAccountName": {
+            "type": "String"
+        },
+        "fileShareName": {
+            "type": "String"
+        },
+        "networkProfileName": {
+            "type": "String"
+        }
+    },
+    "variables": {
+        "resourceGroup": "scott.kerbey"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.ContainerInstance/containerGroups",
+            "apiVersion": "2018-10-01",
+            "name": "[parameters('containerName')]",
+            "location": "australiaeast",
+            "properties": {
+                "containers": [
+                    {
+                        "name": "[parameters('containerName')]",
+                        "properties": {
+                            "image": "mongo:latest",
+                            "command": [
+                                "mongod",
+                                "--dbpath=/data/mongoaz",
+                                "--bind_ip_all"
+                            ],
+                            "ports": [
+                                {
+                                    "protocol": "TCP",
+                                    "port": 27017
+                                }
+                            ],
+                            "environmentVariables": [
+                                {
+                                    "name": "AZURE_STORAGE_KEY",
+                                    "value": "[listKeys(concat('Microsoft.Storage/storageAccounts/', parameters('storageAccountName')), '2019-04-01').keys[0].value]"
+                                },
+                                {
+                                    "name": "AZURE_STORAGE_ACCOUNT",
+                                    "value": "[concat('Microsoft.Storage/storageAccounts/', parameters('storageAccountName'))]"
+                                }
+                            ],
+                            "resources": {
+                                "requests": {
+                                    "memoryInGB": 1.5,
+                                    "cpu": 1
+                                }
+                            },
+                            "volumeMounts": [
+                                {
+                                    "name": "azurefile",
+                                    "mountPath": "/data/mongoaz"
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "restartPolicy": "Always",
+                "ipAddress": {
+                    "ports": [
+                        {
+                            "protocol": "TCP",
+                            "port": 27017
+                        }
+                    ],
+                    "type": "Private"
+                },
+                "networkProfile": {
+                    "id": "[resourceId(variables('resourceGroup'), 'Microsoft.Network/networkProfiles', parameters('networkProfileName'))]"
+                },
+                "osType": "Linux",
+                "volumes": [
+                    {
+                        "name": "azurefile",
+                        "azureFile": {
+                            "storageAccountKey": "[listKeys(concat('Microsoft.Storage/storageAccounts/', parameters('storageAccountName')), '2019-04-01').keys[0].value]",
+                            "shareName": "[parameters('fileShareName')]",
+                            "storageAccountName": "[concat('Microsoft.Storage/storageAccounts/', parameters('storageAccountName'))]"
+                        }
+                    }
+                ]
+            }
+        }
+    ]
+}
