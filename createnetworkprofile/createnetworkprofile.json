@@ -1,0 +1,49 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "networkProfileName": {
+        "type": "String"
+    },
+    "vnetName": {
+        "type": "String"
+    },
+    "subnetName": {
+        "type": "String"
+    }
+  },
+  "variables": {
+        "interfaceConfigName": "eth0",
+        "interfaceIpConfig": "ipconfigprofile1"
+    },
+  "resources": [
+      {
+        "name": "[parameters('networkProfileName')]",
+        "type": "Microsoft.Network/networkProfiles",
+        "apiVersion": "2018-07-01",
+        "location": "australiaeast",
+        "dependsOn": [
+            "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]"
+        ],
+        "properties": {
+            "containerNetworkInterfaceConfigurations": [
+            {
+                "name": "[variables('interfaceConfigName')]",
+                "properties": {
+                "ipConfigurations": [
+                    {
+                    "name": "[variables('interfaceIpConfig')]",
+                    "properties": {
+                        "subnet": {
+                        "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('subnetName'))]"
+                        }
+                    }
+                    }
+                ]
+                }
+            }
+            ]
+        }
+        }
+    ]
+}
